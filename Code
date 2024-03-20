@@ -1,0 +1,112 @@
+// Pin-Definitionen
+const int redStreetPin = 2;
+const int yellowStreetPin = 3;
+const int greenStreetPin = 4;
+const int redPedestrianPin = 5;
+const int greenPedestrianPin = 6;
+const int buttonPin = 7;
+const int speakerPin = 8;
+
+// Zustände der Ampeln
+enum TrafficState {
+  RED,
+  RED_YELLOW,
+  GREEN,
+  YELLOW
+};
+
+enum PedestrianState {
+  DONT_WALK,
+  WALK
+};
+
+// Initialisierung der Ampelschaltung
+TrafficState trafficState = RED;
+PedestrianState pedestrianState = DONT_WALK;
+unsigned long previousMillis = 0;
+const long interval = 1000; // Intervall für die Ampelschaltung (in Millisekunden)
+bool buttonPressed = false;
+
+void setup() {
+  pinMode(redStreetPin, OUTPUT);
+  pinMode(yellowStreetPin, OUTPUT);
+  pinMode(greenStreetPin, OUTPUT);
+  pinMode(redPedestrianPin, OUTPUT);
+  pinMode(greenPedestrianPin, OUTPUT);
+  pinMode(buttonPin, INPUT_PULLUP); // interner Pull-Up Widerstand aktivieren
+  pinMode(speakerPin, OUTPUT);
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  // Bedarfsanmeldung durch Push-Button
+  if (digitalRead(buttonPin) == LOW) {
+    buttonPressed = true;
+  }
+
+  // Ampelschaltung
+  switch (trafficState) {
+    case RED:
+      if (currentMillis - previousMillis >= interval) {
+        trafficState = GREEN;
+        previousMillis = currentMillis;
+      }
+      break;
+    case GREEN:
+      if (currentMillis - previousMillis >= interval) {
+        trafficState = YELLOW;
+        previousMillis = currentMillis;
+      }
+      break;
+    case YELLOW:
+      if (currentMillis - previousMillis >= interval) {
+        trafficState = RED;
+        previousMillis = currentMillis;
+      }
+      break;
+  }
+
+  // Fußgängerampelschaltung
+  switch (pedestrianState) {
+    case DONT_WALK:
+      if (trafficState == RED && buttonPressed) {
+        pedestrianState = WALK;
+        digitalWrite(greenPedestrianPin, HIGH); // Fußgängerampel auf grün setzen
+        tone(speakerPin, 1000); // Ton-Signal abspielen
+        delay(1000); // Ton für 1 Sekunde abspielen
+        noTone(speakerPin); // Ton stoppen
+        delay(1000); // Warten, während Fußgängerampel grün ist
+        digitalWrite(greenPedestrianPin, LOW); // Fußgängerampel ausschalten
+        pedestrianState = DONT_WALK; // Zustand zurücksetzen
+        buttonPressed = false; // Bedarfsanmeldung zurücksetzen
+      }
+      break;
+    case WALK:
+      if (currentMillis - previousMillis >= 5000) { // Fußgängerampel bleibt 5 Sekunden lang grün
+        pedestrianState = DONT_WALK;
+        digitalWrite(greenPedestrianPin, LOW);
+        previousMillis = currentMillis;
+      }
+      break;
+  }
+
+  // Straßenampeln entsprechend dem aktuellen Zustand setzen
+  switch (trafficState) {
+    case RED:
+      digitalWrite(redStreetPin, HIGH);
+      digitalWrite(yellowStreetPin, LOW);
+      digitalWrite(greenStreetPin, LOW);
+      break;
+    case GREEN:
+      digitalWrite(redStreetPin, LOW);
+      digitalWrite(yellowStreetPin, LOW);
+      digitalWrite(greenStreetPin, HIGH);
+      break;
+    case YELLOW:
+      digitalWrite(redStreetPin, LOW);
+      digitalWrite(yellowStreetPin, HIGH);
+      digitalWrite(greenStreetPin, LOW);
+      break;
+  }
+}
